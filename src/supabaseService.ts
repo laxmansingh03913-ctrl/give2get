@@ -41,6 +41,7 @@ create policy "Allow insert access to reviews" on public.reviews for insert with
 */
 
 export async function getSupabaseProjects(): Promise<Project[]> {
+  if (!supabase) throw new Error("Supabase client is not initialized.");
   try {
     const { data: dbProjects, error: projError } = await supabase
       .from('projects')
@@ -97,6 +98,7 @@ export async function createSupabaseProject(
   project: Omit<Project, 'id' | 'reviews' | 'reviewsCount' | 'targetReviews'>,
   isFeatured: boolean = false
 ): Promise<Project> {
+  if (!supabase) throw new Error("Supabase client is not initialized.");
   const newId = `p-db-${Date.now()}`;
   const record = {
     id: newId,
@@ -129,6 +131,7 @@ export async function createSupabaseReview(
   projectId: string,
   review: Omit<Review, 'id' | 'createdAt'>
 ): Promise<Review> {
+  if (!supabase) throw new Error("Supabase client is not initialized.");
   const newId = `r-db-${Date.now()}`;
   const record = {
     id: newId,

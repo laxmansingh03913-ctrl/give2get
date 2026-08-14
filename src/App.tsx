@@ -265,6 +265,7 @@ export default function App() {
 
   // Listen to Supabase Auth state changes
   useEffect(() => {
+    if (!supabase) return;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const u = session.user;
@@ -387,6 +388,22 @@ export default function App() {
   };
 
   const handleLogin = async (provider: 'google' | 'github') => {
+    if (!supabase) {
+      // Fallback local sign in so it works in environments without Supabase credentials configured
+      const isGoogle = provider === 'google';
+      const mockUser = {
+        name: isGoogle ? 'Alex Rivera' : 'alex-rivera-dev',
+        avatar: isGoogle ? 'AR' : 'AL',
+        email: isGoogle ? 'alex.rivera@gmail.com' : 'alex@github.com',
+        is_pro: false
+      };
+      setUser(mockUser);
+      setProfileData(prev => ({ ...prev, name: mockUser.name, avatar: mockUser.avatar, email: mockUser.email }));
+      setView('explore');
+      showNotification(`Logged in successfully in offline fallback mode with ${isGoogle ? 'Google' : 'GitHub'}!`);
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -532,7 +549,9 @@ export default function App() {
             <button 
               className="nav-item"
               onClick={async () => {
-                await supabase.auth.signOut();
+                if (supabase) {
+                  await supabase.auth.signOut();
+                }
                 setUser(null);
                 setView('landing');
                 showNotification("Logged out successfully.");
