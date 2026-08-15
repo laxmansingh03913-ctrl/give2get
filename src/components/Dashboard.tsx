@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ExternalLink, Github, MessageSquare, Plus, Unlock, Send, X, Sparkles, Lock, DollarSign } from 'lucide-react';
-import ProjectDetailModal from './ProjectDetailModal';
+
 
 export interface Review {
   id: string;
@@ -11,6 +11,10 @@ export interface Review {
     code: number;
     performance: number;
   };
+  category?: string;
+  rating?: number;
+  helpfulCount?: number;
+  isResolved?: boolean;
   createdAt: string;
 }
 
@@ -34,15 +38,25 @@ interface DashboardProps {
   projects: Project[];
   onAddReview: (projectId: string, review: Omit<Review, 'id' | 'createdAt'>) => void;
   onAddProject: (project: Omit<Project, 'id' | 'reviews' | 'reviewsCount' | 'targetReviews'>, isPaidFeatured?: boolean) => void;
+  onSelectProject: (project: Project) => void;
+  selectedTagFilter?: string | null;
+  onSelectTagFilter?: (tag: string | null) => void;
 }
 
-export default function Dashboard({ credits, projects, onAddReview, onAddProject }: DashboardProps) {
+export default function Dashboard({
+  credits,
+  projects,
+  onAddReview,
+  onAddProject,
+  onSelectProject,
+  selectedTagFilter,
+  onSelectTagFilter
+}: DashboardProps) {
   // Modal states
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [offerFixProject, setOfferFixProject] = useState<Project | null>(null);
-  const [detailProject, setDetailProject] = useState<Project | null>(null);
 
   // Review form states
   const [reviewContent, setReviewContent] = useState('');
@@ -69,8 +83,10 @@ export default function Dashboard({ credits, projects, onAddReview, onAddProject
   const [postTags, setPostTags] = useState('');
   const [postError, setPostError] = useState('');
 
-  // Tag filter state
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  // Tag filter state (controlled by parent or local fallback)
+  const [localActiveFilter, setLocalActiveFilter] = useState<string | null>(null);
+  const activeFilter = selectedTagFilter !== undefined ? selectedTagFilter : localActiveFilter;
+  const setActiveFilter = onSelectTagFilter !== undefined ? onSelectTagFilter : setLocalActiveFilter;
 
   // Unlock and Payment selection states
   const [unlockMethod, setUnlockMethod] = useState<'credits' | 'fasttrack'>('credits');
@@ -354,7 +370,7 @@ export default function Dashboard({ credits, projects, onAddReview, onAddProject
                 key={project.id} 
                 className={`glass-panel project-card ${project.is_featured || isTopCard ? 'featured' : ''}`} 
                 style={{ padding: '24px', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
-                onClick={() => setDetailProject(project)}
+                onClick={() => onSelectProject(project)}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ''; }}
               >
@@ -1002,21 +1018,6 @@ export default function Dashboard({ credits, projects, onAddReview, onAddProject
             </div>
           </div>
         </div>
-      )}
-
-      {/* ── Project Detail Split-Screen Modal ── */}
-      {detailProject && (
-        <ProjectDetailModal
-          project={detailProject}
-          onClose={() => setDetailProject(null)}
-          onAddReview={(projectId, review) => {
-            onAddReview(projectId, review);
-            // Update the local detail view to reflect the new review immediately
-            setDetailProject(prev =>
-              prev ? { ...prev, reviewsCount: prev.reviewsCount + 1 } : null
-            );
-          }}
-        />
       )}
     </div>
   );

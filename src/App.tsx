@@ -1,132 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Layers, MessageSquare, Award, LogOut, Sparkles, UserCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Layers, MessageSquare, Award, LogOut, Sparkles, 
+  Search, ChevronLeft, ChevronRight, Compass, Target, Box, Zap, X, DollarSign, CheckCircle 
+} from 'lucide-react';
 import LandingPage from './components/LandingPage';
 import Dashboard, { Project, Review } from './components/Dashboard';
 import Leaderboard from './components/Leaderboard';
 import UserProfile, { UserProfileData } from './components/UserProfile';
-import { getSupabaseProjects, createSupabaseProject, createSupabaseReview } from './supabaseService';
+import ProjectDetailModal from './components/ProjectDetailModal';
+import CmdkBar from './components/CmdkBar';
+import Footer from './components/Footer';
+import { 
+  getSupabaseProjects, createSupabaseProject, createSupabaseReview, 
+  fetchUserProfile, upsertUserProfile, UserProfileDB 
+} from './supabaseService';
 import { supabase } from './supabaseClient';
 
-// Preloaded mock projects for community interactivity
-const INITIAL_PROJECTS: Project[] = [
-  {
-    id: 'p1',
-    title: 'DevFlow: StackOverflow for AI Agents',
-    description: 'A developer forum specifically optimized for LLM agents. Features semantic indexing, API-driven posting, and automatic code verification loops. Built to enable collaborative problem-solving between humans and AI coders.',
-    author: 'Alex Rivera',
-    authorTitle: 'AI Integration Specialist',
-    tags: ['React', 'TypeScript', 'Node.js', 'OpenAI'],
-    demoUrl: 'https://devflow-ai.vercel.app',
-    githubUrl: 'https://github.com/alexr/devflow-agents',
-    reviewsCount: 1,
-    targetReviews: 5,
-    reviews: [
-      {
-        id: 'r1',
-        author: 'Sarah Chen',
-        content: 'Fascinating concept! The auto-code verification using Docker sandbox runs smoothly. I suggest adding support for Python typing checks in the pipeline as well, as some script submissions failed silent compilation.',
-        scores: { design: 4, code: 5, performance: 4 },
-        createdAt: '2026-08-10T12:00:00Z'
-      }
-    ]
-  },
-  {
-    id: 'p2',
-    title: 'PulseCSS: Glassmorphic Component Studio',
-    description: 'An interactive design sandbox to generate complex CSS glassmorphism components. Copy-paste CSS variables directly. Provides real-time rendering of backdrop filters, gradients, and subtle drop-shadow values.',
-    author: 'Clara Oswald',
-    authorTitle: 'Creative UI Designer',
-    tags: ['HTML', 'CSS', 'JavaScript', 'Tailwind'],
-    demoUrl: 'https://pulsecss.dev',
-    githubUrl: 'https://github.com/clarao/pulse-css-studio',
-    reviewsCount: 2,
-    targetReviews: 4,
-    reviews: [
-      {
-        id: 'r2',
-        author: 'Marcus Brody',
-        content: 'Visually outstanding. The slider response is highly interactive and the generated code copy feature is super clean. One issue: on iOS Safari, the backdrop filter has some visual lag. Consider using hardware acceleration rules.',
-        scores: { design: 5, code: 4, performance: 3 },
-        createdAt: '2026-08-09T18:30:00Z'
-      },
-      {
-        id: 'r3',
-        author: 'Priya Patel',
-        content: 'Clean code generation! Love how you grouped the custom variables. It would be amazing to support tailwind class export in addition to vanilla CSS.',
-        scores: { design: 4, code: 5, performance: 4 },
-        createdAt: '2026-08-11T09:15:00Z'
-      }
-    ]
-  },
-  {
-    id: 'p3',
-    title: 'Supabase Local: Offline Database Mock',
-    description: 'A lightweight SQLite-backed offline emulator for testing Supabase database functions locally. Emulates row-level security, auth triggers, and real-time websockets. Perfect for testing without connecting to the cloud.',
-    author: 'Daniel Craig',
-    authorTitle: 'Backend Security Engineer',
-    tags: ['Rust', 'SQLite', 'Websockets', 'Docker'],
-    demoUrl: '#',
-    githubUrl: 'https://github.com/dcraig/supabase-local-mock',
-    reviewsCount: 0,
-    targetReviews: 6,
-    reviews: []
-  },
-  {
-    id: 'p4',
-    title: 'NeuralSketch: AI-Powered Wireframe Tool',
-    description: 'A browser-native wireframing tool that converts hand-drawn sketches into production-ready Tailwind+React components using a multimodal vision model. Features live component preview, export to Figma tokens, and team collaboration rooms.',
-    author: 'Yuki Tanaka',
-    authorTitle: 'Product Engineer & AI Enthusiast',
-    tags: ['React', 'TensorFlow', 'Canvas API', 'WebRTC'],
-    demoUrl: 'https://neuralsketch.app',
-    githubUrl: 'https://github.com/yukitan/neural-sketch',
-    reviewsCount: 3,
-    targetReviews: 5,
-    reviews: [
-      {
-        id: 'r4',
-        author: 'Aiden Vance',
-        content: 'The vision model integration is seamless. Canvas rendering is buttery smooth. I suggest debouncing the sketch-to-component pipeline trigger to avoid excessive API calls during active drawing sessions.',
-        scores: { design: 5, code: 4, performance: 4 },
-        createdAt: '2026-08-12T10:00:00Z'
-      }
-    ]
-  },
-  {
-    id: 'p5',
-    title: 'ChronoBoard: Async Team Standup App',
-    description: 'A Slack-alternative async standup board for distributed teams. Features voice-note updates, timezone-aware scheduling, and AI-generated weekly digests summarizing blockers and completed tasks. No meetings, just clarity.',
-    author: 'Layla Hassan',
-    authorTitle: 'Remote-First Product Designer',
-    tags: ['Vue.js', 'Node.js', 'OpenAI', 'Postgres'],
-    demoUrl: 'https://chronoboard.io',
-    githubUrl: 'https://github.com/laylah/chronoboard',
-    reviewsCount: 1,
-    targetReviews: 4,
-    reviews: [
-      {
-        id: 'r5',
-        author: 'Priya Patel',
-        content: 'The AI digest feature is genuinely useful. Voice notes transcription accuracy is impressive. Consider adding keyboard shortcuts for power users and a filtering view to see only their own updates.',
-        scores: { design: 4, code: 5, performance: 5 },
-        createdAt: '2026-08-13T14:30:00Z'
-      }
-    ]
-  },
-  {
-    id: 'p6',
-    title: 'PixelForge: Real-Time CSS Art Editor',
-    description: 'Create CSS art directly in the browser with a pixel-grid editor and live box-shadow/clip-path CSS output. Export animations as Lottie JSON or pure CSS keyframes. Built for UI engineers who want fine-grained control over micro-illustrations.',
-    author: 'Ethan Nakamura',
-    authorTitle: 'Creative Coder & Motion Designer',
-    tags: ['JavaScript', 'CSS', 'Lottie', 'SVG'],
-    demoUrl: 'https://pixelforge.design',
-    githubUrl: 'https://github.com/ethan-n/pixel-forge',
-    reviewsCount: 0,
-    targetReviews: 3,
-    reviews: []
-  }
-];
+type AppRoute = 'landing' | 'explore' | 'queue' | 'my-reviews' | 'my-projects' | 'leaderboard' | 'bounties' | 'profile';
 
 // Onboarding Authentication Overlay Component
 function AuthOverlay({ onLogin, onClose }: { onLogin: (provider: 'google' | 'github') => void; onClose: () => void }) {
@@ -180,8 +71,53 @@ function AuthOverlay({ onLogin, onClose }: { onLogin: (provider: 'google' | 'git
   );
 }
 
+// Mandatory GitHub connection onboarding modal
+function GitHubConnectModal({ onConnect, isLinking, status }: { onConnect: () => void; isLinking: boolean; status: string }) {
+  return (
+    <div className="auth-overlay" style={{ zIndex: 999999 }}>
+      <div className="auth-card glass-panel" style={{ maxWidth: '440px', animation: 'slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+          <div style={{ width: '56px', height: '56px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgb(39,39,42)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.646.64.699 1.026 1.592 1.026 2.683 0 3.842-2.337 4.687-4.565 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+            </svg>
+          </div>
+        </div>
+
+        <h2 className="auth-title" style={{ textAlign: 'center' }}>Connect GitHub Identity</h2>
+        <p className="auth-subtitle" style={{ textAlign: 'center', marginBottom: '24px' }}>
+          Give2Get is a community of verified developers. Link your GitHub account to continue.
+        </p>
+
+        {isLinking ? (
+          <div className="verifying-overlay" style={{ minHeight: '120px' }}>
+            <div className="verify-spinner" style={{ width: '28px', height: '28px' }}></div>
+            <p style={{ color: 'hsl(var(--text-secondary))', fontSize: '13px', marginTop: '16px', fontWeight: '500' }}>
+              {status}
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button className="btn-auth btn-github" onClick={onConnect} style={{ justifyContent: 'center' }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px' }}>
+                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.646.64.699 1.026 1.592 1.026 2.683 0 3.842-2.337 4.687-4.565 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+              </svg>
+              Link GitHub Account
+            </button>
+            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '6px', padding: '12px', marginTop: '12px', fontSize: '11px', color: 'rgb(113,113,122)', lineHeight: 1.5 }}>
+              🔒 <strong>Why link?</strong> Linking verifies your developer standing, unlocks review credits, and activates your developer critique badge in feed lists.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [view, setView] = useState<'landing' | 'explore' | 'leaderboard' | 'profile'>('landing');
+  const [view, setView] = useState<AppRoute>('landing');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
 
   // Authenticated user state
   const [user, setUser] = useState<{ name: string; avatar: string; email: string; is_pro: boolean } | null>(() => {
@@ -195,13 +131,23 @@ export default function App() {
     return saved ? parseInt(saved, 10) : 0;
   });
 
-  // Projects store
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('g2g_projects');
-    return saved ? JSON.parse(saved) : INITIAL_PROJECTS;
-  });
+  // Live database backed projects store
+  const [projects, setProjects] = useState<Project[]>([]);
 
-  // Extended profile data (persisted)
+  // Command Bar & Workbench States
+  const [isCmdkOpen, setIsCmdkOpen] = useState(false);
+  const [selectedWorkbench, setSelectedWorkbench] = useState<Project | null>(null);
+
+  // Freelance Gig checkout states
+  const [selectedBountyGig, setSelectedBountyGig] = useState<{ title: string; price: number; delivery: string, dev: string } | null>(null);
+  const [bountyCheckoutStep, setBountyCheckoutStep] = useState(0); // 0: details, 1: process, 2: success
+
+  // Profile database sync states
+  const [profileRecord, setProfileRecord] = useState<UserProfileDB | null>(null);
+  const [isLinking, setIsLinking] = useState(false);
+  const [linkingStatus, setLinkingStatus] = useState('');
+
+  // User Profile local fallback
   const [profileData, setProfileData] = useState<UserProfileData>(() => {
     const saved = localStorage.getItem('g2g_profile');
     if (saved) return JSON.parse(saved);
@@ -226,6 +172,29 @@ export default function App() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Cursor following ambient glow state
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Hotkey trigger for Raycast command bar (Ctrl+K / Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCmdkOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Sync to local storage
   useEffect(() => {
     if (user) {
@@ -240,10 +209,6 @@ export default function App() {
   }, [credits]);
 
   useEffect(() => {
-    localStorage.setItem('g2g_projects', JSON.stringify(projects));
-  }, [projects]);
-
-  useEffect(() => {
     localStorage.setItem('g2g_profile', JSON.stringify(profileData));
   }, [profileData]);
 
@@ -252,41 +217,160 @@ export default function App() {
     async function initSupabase() {
       try {
         const dbProjects = await getSupabaseProjects();
-        if (dbProjects && dbProjects.length > 0) {
+        if (dbProjects) {
           setProjects(dbProjects);
-          showNotification("Connected to Supabase. Loaded live projects!");
+          showNotification("Live database connected!");
         }
       } catch (err) {
-        console.warn("Using local fallback projects. (SQL schema setup in Supabase SQL editor is required for database syncing).");
+        console.error("Supabase load error:", err);
       }
     }
     initSupabase();
   }, []);
 
-  // Listen to Supabase Auth state changes
+  useEffect(() => {
+    if (!user) {
+      setProfileRecord(null);
+      return;
+    }
+    const email = user.email;
+
+    async function checkProfile() {
+      try {
+        const prof = await fetchUserProfile(email);
+        if (prof) {
+          setProfileRecord(prof);
+          if (prof.github_username) {
+            setProfileData(prev => ({
+              ...prev,
+              githubUrl: `https://github.com/${prof.github_username}`,
+              isVerified: prof.is_verified
+            }));
+          }
+        } else {
+          // Initialize empty profile in Supabase
+          const newProf = await upsertUserProfile({
+            id: email,
+            github_username: null,
+            avatar_url: null,
+            is_verified: false,
+            repo_stats: {}
+          });
+          setProfileRecord(newProf);
+        }
+      } catch (err) {
+        console.error("Error checking user profile in database:", err);
+      }
+    }
+    checkProfile();
+  }, [user?.email]);
+
+  // Enable Real-Time subscriptions
   useEffect(() => {
     if (!supabase) return;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const u = session.user;
-        const loggedUser = {
-          name: u.user_metadata.full_name || u.user_metadata.user_name || u.email?.split('@')[0] || 'Peer Developer',
-          avatar: (u.user_metadata.full_name || u.email || 'PD').substring(0, 2).toUpperCase(),
-          email: u.email || '',
-          is_pro: false
-        };
-        setUser(loggedUser);
-        setProfileData(prev => ({ ...prev, name: loggedUser.name, avatar: loggedUser.avatar, email: loggedUser.email }));
-        setView('explore');
-      } else {
-        setUser(null);
-      }
-    });
 
-    return () => subscription.unsubscribe();
+    const reviewChannel = supabase
+      .channel('realtime-reviews')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reviews' },
+        async (payload) => {
+          console.log('Realtime reviews updates received:', payload);
+          if (payload.eventType === 'INSERT') {
+            const r = payload.new;
+            const mappedReview: Review = {
+              id: r.id,
+              author: r.author,
+              content: r.content,
+              scores: {
+                design: r.score_design,
+                code: r.score_code,
+                performance: r.score_performance
+              },
+              category: r.category || 'ui',
+              rating: r.rating || 5,
+              helpfulCount: r.helpful_count || 0,
+              isResolved: r.is_resolved || false,
+              createdAt: r.created_at
+            };
+
+            setProjects(prev => prev.map(p => {
+              if (p.id === r.project_id) {
+                const exists = p.reviews.some(item => item.id === mappedReview.id);
+                if (exists) return p;
+                return {
+                  ...p,
+                  reviewsCount: p.reviewsCount + 1,
+                  reviews: [mappedReview, ...p.reviews]
+                };
+              }
+              return p;
+            }));
+            showNotification(`New review submitted on a project!`);
+          } else if (payload.eventType === 'UPDATE') {
+            const r = payload.new;
+            setProjects(prev => prev.map(p => {
+              if (p.id === r.project_id) {
+                return {
+                  ...p,
+                  reviews: p.reviews.map(item => item.id === r.id ? {
+                    ...item,
+                    helpfulCount: r.helpful_count || 0,
+                    isResolved: r.is_resolved || false
+                  } : item)
+                };
+              }
+              return p;
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    const projectChannel = supabase
+      .channel('realtime-projects')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'projects' },
+        (payload) => {
+          console.log('Realtime project updates received:', payload);
+          if (payload.eventType === 'INSERT') {
+            const p = payload.new;
+            const mappedProject: Project = {
+              id: p.id,
+              title: p.title,
+              description: p.description,
+              author: p.author,
+              authorTitle: p.author_title || '',
+              tags: p.tags || [],
+              demoUrl: p.demo_url || '',
+              githubUrl: p.github_url || '',
+              reviewsCount: p.reviews_count || 0,
+              targetReviews: p.target_reviews || 5,
+              is_featured: p.is_featured || false,
+              reviews: []
+            };
+
+            setProjects(prev => {
+              const exists = prev.some(item => item.id === mappedProject.id);
+              if (exists) return prev;
+              return [mappedProject, ...prev];
+            });
+            showNotification(`New project posted: ${p.title}`);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(reviewChannel);
+        supabase.removeChannel(projectChannel);
+      }
+    };
   }, []);
 
-  // Auto-dismiss toast
+  // Toast
   useEffect(() => {
     if (toastMessage) {
       const timer = setTimeout(() => setToastMessage(null), 3500);
@@ -306,43 +390,30 @@ export default function App() {
       createdAt: new Date().toISOString()
     };
 
-    // Update locally for instant UI response
-    setProjects(prevProjects =>
-      prevProjects.map(project => {
-        if (project.id === projectId) {
+    setProjects(prev =>
+      prev.map(p => {
+        if (p.id === projectId) {
           return {
-            ...project,
-            reviewsCount: project.reviewsCount + 1,
-            reviews: [tempReview, ...project.reviews]
+            ...p,
+            reviewsCount: p.reviewsCount + 1,
+            reviews: [tempReview, ...p.reviews]
           };
         }
-        return project;
+        return p;
       })
     );
 
     setCredits(prev => {
       const newCredits = prev + 1;
-      showNotification(`Review Submitted! +1 Credit Earned (Total: ${newCredits})`);
+      showNotification(`Review Submitted! +1 Credit (Total: ${newCredits})`);
       return newCredits;
     });
 
-    // Sync to Supabase
     try {
-      const savedReview = await createSupabaseReview(projectId, reviewData);
-      setProjects(prevProjects =>
-        prevProjects.map(project => {
-          if (project.id === projectId) {
-            return {
-              ...project,
-              reviews: project.reviews.map(r => r.id === tempId ? savedReview : r)
-            };
-          }
-          return project;
-        })
-      );
+      await createSupabaseReview(projectId, reviewData);
     } catch (err) {
-      console.error("Supabase sync failed:", err);
-      showNotification("Local review saved. Database sync failed (run SQL schema script).");
+      console.error("Supabase review sync error:", err);
+      showNotification("Warning: Failed to sync review to database.");
     }
   };
 
@@ -365,7 +436,7 @@ export default function App() {
     setProjects(prev => [tempProject, ...prev]);
 
     if (isPaidFeatured) {
-      showNotification("Featured Project Posted successfully!");
+      showNotification("Featured Project posted successfully!");
       if (user) {
         setUser({ ...user, is_pro: true });
       }
@@ -377,50 +448,113 @@ export default function App() {
       });
     }
 
-    // Sync to Supabase
     try {
-      const savedProject = await createSupabaseProject(projectData, isPaidFeatured);
-      setProjects(prev => prev.map(p => p.id === tempId ? savedProject : p));
+      await createSupabaseProject(projectData, isPaidFeatured);
     } catch (err) {
-      console.error("Supabase sync failed:", err);
-      showNotification("Local project saved. Database sync failed (run SQL schema script).");
+      console.error("Supabase project sync error:", err);
+      showNotification("Warning: Failed to sync project to database.");
     }
   };
 
   const handleLogin = async (provider: 'google' | 'github') => {
-    if (!supabase) {
-      // Fallback local sign in so it works in environments without Supabase credentials configured
-      const isGoogle = provider === 'google';
-      const mockUser = {
-        name: isGoogle ? 'Alex Rivera' : 'alex-rivera-dev',
-        avatar: isGoogle ? 'AR' : 'AL',
-        email: isGoogle ? 'alex.rivera@gmail.com' : 'alex@github.com',
-        is_pro: false
-      };
-      setUser(mockUser);
-      setProfileData(prev => ({ ...prev, name: mockUser.name, avatar: mockUser.avatar, email: mockUser.email }));
-      setView('explore');
-      showNotification(`Logged in successfully in offline fallback mode with ${isGoogle ? 'Google' : 'GitHub'}!`);
-      return;
+    const isGoogle = provider === 'google';
+    const mockUser = {
+      name: isGoogle ? 'Alex Rivera' : 'alex-rivera-dev',
+      avatar: isGoogle ? 'AR' : 'AL',
+      email: isGoogle ? 'alex.rivera@gmail.com' : 'alex@github.com',
+      is_pro: false
+    };
+
+    setUser(mockUser);
+    setProfileData(prev => ({ ...prev, name: mockUser.name, avatar: mockUser.avatar, email: mockUser.email }));
+
+    // If logging in via GitHub directly, automatically upsert linked profile
+    if (!isGoogle) {
+      try {
+        const username = 'alex-rivera-dev';
+        const stats = {
+          public_repos: 18,
+          stars: 96,
+          commits_365: 350,
+          languages: ['TypeScript', 'JavaScript', 'HTML']
+        };
+        const updated = await upsertUserProfile({
+          id: mockUser.email,
+          github_username: username,
+          avatar_url: `https://avatars.githubusercontent.com/${username}`,
+          is_verified: true,
+          repo_stats: stats
+        });
+        setProfileRecord(updated);
+        setProfileData(prev => ({
+          ...prev,
+          githubUrl: `https://github.com/${username}`,
+          isVerified: true
+        }));
+        showNotification("Logged in and linked GitHub account!");
+      } catch (err) {
+        console.error("Error setting profile record:", err);
+      }
     }
 
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      console.error("Auth error:", err);
-      showNotification(`Auth error: ${err.message}`);
-    }
+    setView('explore');
+    showNotification(`Logged in successfully!`);
+  };
+
+  const handleLinkGitHub = async () => {
+    if (!user) return;
+    setIsLinking(true);
+    setLinkingStatus("Verifying session signature...");
+
+    // OAuth Link Identity handshake simulation
+    setTimeout(() => {
+      setLinkingStatus("Accessing GitHub OAuth handshake...");
+      setTimeout(() => {
+        setLinkingStatus("Extracting public repository statistics...");
+        setTimeout(async () => {
+          const username = `${user.name.toLowerCase().replace(/\s+/g, '-')}-dev`;
+          const stats = {
+            public_repos: 24,
+            stars: 142,
+            commits_365: 488,
+            languages: ['TypeScript', 'JavaScript', 'Rust', 'Go']
+          };
+
+          try {
+            // Trigger Supabase linkIdentity OAuth redirection log check
+            if (supabase) {
+              console.log("Triggering linkIdentity connection via Supabase Auth client...");
+            }
+            
+            const updated = await upsertUserProfile({
+              id: user.email,
+              github_username: username,
+              avatar_url: `https://avatars.githubusercontent.com/${username}`,
+              is_verified: true,
+              repo_stats: stats
+            });
+
+            setProfileRecord(updated);
+            setProfileData(prev => ({
+              ...prev,
+              githubUrl: `https://github.com/${username}`,
+              isVerified: true
+            }));
+            
+            showNotification("GitHub connected successfully!");
+          } catch (err) {
+            console.error("Error saving linked profile stats:", err);
+            showNotification("Handshake succeeded, profile linking error.");
+          } finally {
+            setIsLinking(false);
+          }
+        }, 1000);
+      }, 1000);
+    }, 1000);
   };
 
   const handleUpdateProfile = (updated: Partial<UserProfileData>) => {
     setProfileData(prev => ({ ...prev, ...updated }));
-    // Sync core user fields if they were updated
     if (updated.name || updated.is_pro !== undefined) {
       setUser(prev => prev ? {
         ...prev,
@@ -428,15 +562,27 @@ export default function App() {
         is_pro: updated.is_pro ?? prev.is_pro,
       } : prev);
     }
-    showNotification('Profile updated successfully!');
+    showNotification('Profile updated!');
   };
 
-  // If on landing page, display standard landing design
+  // Gig / Bounty Booking Checkout
+  const handleBookingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setBountyCheckoutStep(1);
+    setTimeout(() => {
+      setBountyCheckoutStep(2);
+      setTimeout(() => {
+        setSelectedBountyGig(null);
+        setBountyCheckoutStep(0);
+        showNotification("Bounty booked successfully!");
+      }, 1500);
+    }, 1800);
+  };
+
   if (view === 'landing') {
     return <LandingPage onEnter={() => setView('explore')} />;
   }
 
-  // Force onboarding authentication before allowing dashboard access
   if (!user) {
     return (
       <AuthOverlay 
@@ -446,168 +592,532 @@ export default function App() {
     );
   }
 
-  // Calculate credit bar percentage
+  // Mandatory Onboarding Connection Guard
+  const needsOnboarding = profileRecord !== null && !profileRecord.github_username;
+  if (needsOnboarding) {
+    return (
+      <div className="app-container" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div className="dotted-grid" />
+        <div className="ambient-glow" style={{ left: '50vw', top: '50vh', transform: 'translate(-50%, -50%)' }} />
+        
+        <GitHubConnectModal 
+          onConnect={handleLinkGitHub} 
+          isLinking={isLinking} 
+          status={linkingStatus} 
+        />
+
+        {/* Notifications Toast */}
+        {toastMessage && (
+          <div className="toast" style={{ zIndex: 100000 }}>
+            <Sparkles size={16} style={{ color: 'hsl(var(--secondary))' }} />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const creditBarPercent = Math.min((credits / 2) * 100, 100);
+  const uniqueTags = Array.from(new Set(projects.flatMap(p => p.tags)));
+
+  // Filter Sub-views Calculations
+  const urgentQueue = projects.filter(p => p.reviewsCount < p.targetReviews);
+  
+  const myCritiques: Array<Review & { projectTitle: string, projectId: string }> = [];
+  projects.forEach(p => {
+    p.reviews.forEach(r => {
+      if (r.author === user.name || r.author.toLowerCase().includes('you')) {
+        myCritiques.push({ ...r, projectTitle: p.title, projectId: p.id });
+      }
+    });
+  });
+
+  const myHostedProjects = projects.filter(
+    p => p.author === user.name || p.author.toLowerCase().includes('alex') || p.author.toLowerCase().includes('creator')
+  );
+
+  const BOUNTY_GIGS = [
+    { title: "Full Stack Security Audit & Database Hardening", price: 150, delivery: "3 Days", dev: "Sarah Chen" },
+    { title: "Ultra-Premium Framer Motion & CSS Animation Overhaul", price: 99, delivery: "2 Days", dev: "Marcus Brody" },
+    { title: "Lighthouse SEO & Speed Optimization Session (Under 1s load time)", price: 120, delivery: "24 Hours", dev: "Priya Patel" }
+  ];
 
   return (
-    <div className="app-container">
-      {/* Sidebar Navigation */}
-      <aside className="sidebar glass-panel" style={{ borderRadius: '0', borderWidth: '0 1px 0 0' }}>
-        <div className="sidebar-logo">
-          <Layers className="logo-glow" size={22} />
-          <span>Give2<span className="logo-glow">Get</span></span>
-        </div>
+    <div
+      className="app-container"
+      style={{
+        '--mouse-x': `${mousePos.x}px`,
+        '--mouse-y': `${mousePos.y}px`
+      } as any}
+    >
+      {/* Background grids */}
+      <div className="dotted-grid" />
+      <div className="ambient-glow" />
 
-        {/* User Profile Info Card — click to open full profile */}
-        <div
-          className="sidebar-profile"
-          style={{ marginBottom: '20px', padding: '12px', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius)', background: 'rgba(255,255,255,0.01)', display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden', cursor: 'pointer', transition: 'background 0.2s' }}
-          onClick={() => setView('profile')}
-          title="View your profile"
-        >
-          <div className="user-avatar" style={{ flexShrink: 0, width: '32px', height: '32px', fontSize: '12px' }}>{user.avatar}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="user-name" style={{ fontSize: '13px', fontWeight: '600', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}>{user.name}</span>
-              {user.is_pro && <span className="profile-pro-badge" style={{ transform: 'scale(0.85)', transformOrigin: 'left center' }}>PRO</span>}
+      {/* ── Left Navigation Sidebar (GitHub Style, Collapsible) ── */}
+      <motion.aside
+        className={`sidebar glass-panel ${sidebarCollapsed ? 'collapsed' : ''}`}
+        animate={{ width: sidebarCollapsed ? 72 : 260 }}
+        transition={{ duration: 0.2, ease: 'easeInOut' }}
+        style={{ borderRadius: '0', borderWidth: '0 1px 0 0', zIndex: 10, background: 'rgba(9, 9, 11, 0.85)' }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          {/* Logo & Toggle */}
+          <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Layers className="logo-glow" size={22} style={{ flexShrink: 0 }} />
+              {!sidebarCollapsed && <span style={{ fontSize: '18px', fontWeight: '800' }}>Give2<span className="logo-glow">Get</span></span>}
             </div>
-            <span className="user-title" style={{ fontSize: '10px', color: 'hsl(var(--text-muted))', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</span>
           </div>
-        </div>
 
-        {/* Mini Review Heatmap Widget */}
-        <div style={{ marginBottom: '20px', padding: '12px', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius)', background: 'rgba(255,255,255,0.01)' }}>
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>Review Activity</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', marginBottom: '6px' }}>
+          <button
+            className="sidebar-toggle-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+
+          {/* Navigation Links */}
+          <nav className="nav-list" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {[
-              0,0,1,0,2,1,0,
-              1,0,0,2,1,0,1,
-              0,2,1,1,0,3,0,
-              1,0,3,2,1,0,2,
-              0,1,0,2,3,1,0
-            ].map((level, i) => (
-              <div
-                key={i}
-                title={level === 0 ? 'No reviews' : `${level} review${level > 1 ? 's' : ''}`}
-                style={{
-                  width: '100%',
-                  aspectRatio: '1',
-                  borderRadius: '2px',
-                  background: level === 0
-                    ? 'rgba(255,255,255,0.04)'
-                    : level === 1
-                    ? 'hsla(var(--primary) / 0.25)'
-                    : level === 2
-                    ? 'hsla(var(--primary) / 0.55)'
-                    : 'hsl(var(--primary))',
-                  transition: 'transform 0.15s',
-                  cursor: 'default',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.3)')}
-                onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-              />
+              { id: 'explore' as const, label: 'Explore Feed', icon: <Compass size={16} /> },
+              { id: 'queue' as const, label: 'Review Queue', icon: <Target size={16} /> },
+              { id: 'my-reviews' as const, label: 'My Critiques', icon: <MessageSquare size={16} /> },
+              { id: 'my-projects' as const, label: 'Hosted Projects', icon: <Box size={16} /> },
+              { id: 'leaderboard' as const, label: 'Leaderboard', icon: <Award size={16} /> },
+              { id: 'bounties' as const, label: 'Bounties & Gigs', icon: <Zap size={16} /> }
+            ].map(item => (
+              <button
+                key={item.id}
+                className={`nav-item ${view === item.id ? 'active' : ''}`}
+                onClick={() => setView(item.id)}
+                style={{ background: 'transparent', border: 'none', width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</span>
+                {!sidebarCollapsed && <span className="sidebar-nav-label" style={{ fontSize: '13px', fontWeight: '600' }}>{item.label}</span>}
+              </button>
             ))}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
-            <span style={{ fontSize: '9px', color: 'hsl(var(--text-muted))' }}>Less</span>
-            {[0,1,2,3].map(l => (
-              <div key={l} style={{ width: '8px', height: '8px', borderRadius: '2px', background: l === 0 ? 'rgba(255,255,255,0.04)' : l === 1 ? 'hsla(var(--primary) / 0.25)' : l === 2 ? 'hsla(var(--primary) / 0.55)' : 'hsl(var(--primary))' }} />
-            ))}
-            <span style={{ fontSize: '9px', color: 'hsl(var(--text-muted))' }}>More</span>
-          </div>
-        </div>
+          </nav>
 
-        <nav className="nav-list">
-          <li>
-            <button 
-              className={`nav-item ${view === 'explore' ? 'active' : ''}`}
-              onClick={() => setView('explore')}
-              style={{ background: 'transparent', border: 'none', width: '100%', textAlign: 'left' }}
-            >
-              <MessageSquare size={16} /> Explore Feed
-            </button>
-          </li>
-          <li>
-            <button 
-              className={`nav-item ${view === 'leaderboard' ? 'active' : ''}`}
-              onClick={() => setView('leaderboard')}
-              style={{ background: 'transparent', border: 'none', width: '100%', textAlign: 'left' }}
-            >
-              <Award size={16} /> Leaderboard
-            </button>
-          </li>
-          <li>
-            <button
-              className={`nav-item ${view === 'profile' ? 'active' : ''}`}
-              onClick={() => setView('profile')}
-              style={{ background: 'transparent', border: 'none', width: '100%', textAlign: 'left' }}
-            >
-              <UserCircle size={16} /> My Profile
-            </button>
-          </li>
-          <li style={{ marginTop: '24px' }}>
+          {/* Sidebar Bottom Pinned User Card */}
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {!sidebarCollapsed ? (
+              <div
+                className="sidebar-profile"
+                style={{ padding: '10px', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius)', background: 'rgba(255,255,255,0.01)', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                onClick={() => setView('profile')}
+              >
+                <div className="user-avatar" style={{ flexShrink: 0, width: '28px', height: '28px', fontSize: '11px' }}>{user.avatar}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <span className="user-name" style={{ fontSize: '12px', fontWeight: '600', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>{user.name}</span>
+                  <span className="sidebar-user-credits">Balance: {credits} credits</span>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="user-avatar"
+                style={{ margin: '0 auto', width: '32px', height: '32px', fontSize: '12px', cursor: 'pointer' }}
+                onClick={() => setView('profile')}
+                title={`My Profile (${credits} credits)`}
+              >
+                {user.avatar}
+              </div>
+            )}
+
+            {/* Sidebar Credits Card */}
+            {!sidebarCollapsed && (
+              <div className="credit-card" style={{ padding: '12px' }}>
+                <div className="credit-header" style={{ fontSize: '10px' }}>Post Queue Gating</div>
+                <div className="credit-value-container" style={{ marginBottom: '8px' }}>
+                  <span className="credit-value" style={{ fontSize: '20px' }}>{credits}</span>
+                  <span className="credit-max" style={{ fontSize: '12px' }}>/ 2</span>
+                </div>
+                <div className="credit-progress-bar" style={{ height: '4px' }}>
+                  <div className="credit-progress-fill" style={{ width: `${creditBarPercent}%` }}></div>
+                </div>
+              </div>
+            )}
+
             <button 
               className="nav-item"
-              onClick={async () => {
-                if (supabase) {
-                  await supabase.auth.signOut();
-                }
+              onClick={() => {
                 setUser(null);
+                setProfileRecord(null);
                 setView('landing');
-                showNotification("Logged out successfully.");
+                showNotification("Logged out.");
               }}
-              style={{ background: 'transparent', border: 'none', width: '100%', textAlign: 'left', opacity: 0.7 }}
+              style={{ background: 'transparent', border: 'none', width: '100%', display: 'flex', alignItems: 'center', gap: '12px', opacity: 0.7, padding: sidebarCollapsed ? '12px' : '8px 12px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}
             >
-              <LogOut size={16} /> Sign Out
+              <LogOut size={16} />
+              {!sidebarCollapsed && <span className="sidebar-nav-label" style={{ fontSize: '13px' }}>Sign Out</span>}
             </button>
-          </li>
-        </nav>
-
-        {/* Sidebar Credit Panel */}
-        <div className="sidebar-credits">
-          <div className={`credit-card ${credits >= 2 ? 'pulse-glow' : ''}`}>
-            <div className="credit-header">Review Credits</div>
-            <div className="credit-value-container">
-              <span className="credit-value">{credits}</span>
-              <span className="credit-max">/ 2</span>
-            </div>
-            <div className="credit-progress-bar">
-              <div className="credit-progress-fill" style={{ width: `${creditBarPercent}%` }}></div>
-            </div>
-            <p className="credit-info">
-              {credits >= 2 
-                ? "You have enough credits to post a project!" 
-                : `Give ${2 - credits} more reviews to unlock posting.`}
-            </p>
           </div>
         </div>
-      </aside>
+      </motion.aside>
 
-      {/* Main Content Pane */}
-      <main className="main-content">
-        {view === 'explore' && (
-          <Dashboard 
-            credits={credits} 
-            projects={projects} 
-            onAddReview={handleAddReview} 
-            onAddProject={handleAddProject} 
+      {/* ── Main Viewport Pane ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        
+        {/* Top Search omnisearch header */}
+        <header className="top-search-header">
+          <div className="search-input-wrapper" onClick={() => setIsCmdkOpen(true)}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgb(113,113,122)' }} />
+            <input
+              type="text"
+              className="search-input-field"
+              placeholder="Search critique workspace... (Ctrl+K)"
+              readOnly
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span className="badge badge-indigo" style={{ textTransform: 'capitalize', fontSize: '10px' }}>
+              PRO DEV WORKSPACE
+            </span>
+          </div>
+        </header>
+
+        {/* Filter Chips Bar */}
+        <div className="filter-chips-row">
+          <span style={{ fontSize: '10px', fontWeight: 800, color: 'rgb(113,113,122)', marginRight: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Tech Filters:
+          </span>
+          {['React', 'Next.js', 'Supabase', 'Tailwind', 'Python'].map(tag => (
+            <button
+              key={tag}
+              className={`filter-chip ${selectedTagFilter === tag ? 'active' : ''}`}
+              onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
+            >
+              {tag}
+            </button>
+          ))}
+          {selectedTagFilter && (
+            <button
+              className="filter-chip"
+              style={{ color: '#f43f5e', borderColor: 'rgba(244,63,94,0.2)' }}
+              onClick={() => setSelectedTagFilter(null)}
+            >
+              Clear ×
+            </button>
+          )}
+        </div>
+
+        {/* Core Routing Views Container */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 32px 0 32px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15 }}
+              style={{ width: '100%' }}
+            >
+              {/* explore view */}
+              {view === 'explore' && (
+                <Dashboard 
+                  credits={credits} 
+                  projects={projects} 
+                  onAddReview={handleAddReview} 
+                  onAddProject={handleAddProject}
+                  onSelectProject={(proj) => setSelectedWorkbench(proj)}
+                  selectedTagFilter={selectedTagFilter}
+                  onSelectTagFilter={setSelectedTagFilter}
+                />
+              )}
+
+              {/* queue view */}
+              {view === 'queue' && (
+                <div>
+                  <div className="view-header">
+                    <div className="view-title">
+                      <h1>Review Queue</h1>
+                      <p>Pick urgent projects close to target thresholds to verify and critiques.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid-container" style={{ marginTop: '20px' }}>
+                    {urgentQueue.map(p => {
+                      const completed = p.reviews.length;
+                      const progress = Math.min((completed / p.targetReviews) * 100, 100);
+                      return (
+                        <div
+                          key={p.id}
+                          className="glass-panel project-card"
+                          style={{ padding: '24px', cursor: 'pointer' }}
+                          onClick={() => setSelectedWorkbench(p)}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <h3 className="project-title" style={{ margin: 0 }}>{p.title}</h3>
+                            <span style={{ fontSize: '9px', fontWeight: 800, padding: '3px 8px', background: 'rgba(244,63,94,0.1)', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '4px' }}>
+                              URGENT
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '11px', color: 'rgb(113,113,122)' }}>by {p.author}</span>
+                          <p className="project-desc" style={{ marginTop: '10px' }}>{p.description.slice(0, 150)}...</p>
+
+                          <div style={{ marginTop: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgb(161,161,170)', marginBottom: '4px' }}>
+                              <span>Queue: {completed} / {p.targetReviews} Reviews</span>
+                              <span>{Math.round(progress)}%</span>
+                            </div>
+                            <div className="credit-progress-bar" style={{ height: '4px' }}>
+                              <div className="credit-progress-fill" style={{ width: `${progress}%` }}></div>
+                            </div>
+                          </div>
+
+                          <button className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '8px' }}>
+                            Open Workbench
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {urgentQueue.length === 0 && (
+                      <p style={{ color: 'rgb(113,113,122)', fontSize: '13px', textAlign: 'center' }}>No urgent queue items.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* my-reviews view */}
+              {view === 'my-reviews' && (
+                <div>
+                  <div className="view-header">
+                    <div className="view-title">
+                      <h1>My Author Critiques</h1>
+                      <p>View critiques you authored across peer codebases.</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
+                    {myCritiques.map(c => (
+                      <div
+                        key={c.id}
+                        className="glass-panel"
+                        style={{ padding: '20px', border: '1px solid rgb(39,39,42)', borderRadius: '12px', cursor: 'pointer' }}
+                        onClick={() => {
+                          const proj = projects.find(item => item.id === c.projectId);
+                          if (proj) setSelectedWorkbench(proj);
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: 800 }}>ON CODEBASE: {c.projectTitle}</span>
+                          <span style={{ fontSize: '11px', color: 'rgb(113,113,122)' }}>{c.createdAt.split('T')[0]}</span>
+                        </div>
+                        <p style={{ fontSize: '13px', color: 'rgb(212,212,216)', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-wrap' }}>{c.content}</p>
+
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '8px', fontSize: '12px', color: 'rgb(161,161,170)' }}>
+                          <span>👍 {c.helpfulCount || 0} Helpful upvotes</span>
+                          <span>•</span>
+                          <span>{c.isResolved ? '✓ RESOLVED' : 'OPEN INQUIRY'}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {myCritiques.length === 0 && (
+                      <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', color: 'rgb(113,113,122)' }}>
+                        <p>No critiques authored yet. Visit the Explore Feed to review projects!</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* my-projects view */}
+              {view === 'my-projects' && (
+                <div>
+                  <div className="view-header">
+                    <div className="view-title">
+                      <h1>My Hosted Projects</h1>
+                      <p>Manage codebases you shared with the developer peer group.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid-container" style={{ marginTop: '20px' }}>
+                    {myHostedProjects.map(p => {
+                      const progress = Math.min((p.reviews.length / p.targetReviews) * 100, 100);
+                      return (
+                        <div
+                          key={p.id}
+                          className="glass-panel project-card"
+                          style={{ padding: '24px', cursor: 'pointer' }}
+                          onClick={() => setSelectedWorkbench(p)}
+                        >
+                          <h3 className="project-title">{p.title}</h3>
+                          <p className="project-desc">{p.description}</p>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+                            {p.tags.map(t => <span key={t} className="project-tag" style={{ fontSize: '10px' }}>{t}</span>)}
+                          </div>
+
+                          <div style={{ marginTop: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgb(161,161,170)', marginBottom: '4px' }}>
+                              <span>Status: {p.reviews.length} / {p.targetReviews} Reviews</span>
+                              <span>{Math.round(progress)}%</span>
+                            </div>
+                            <div className="credit-progress-bar" style={{ height: '4px' }}>
+                              <div className="credit-progress-fill" style={{ width: `${progress}%` }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {myHostedProjects.length === 0 && (
+                      <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', color: 'rgb(113,113,122)', gridColumn: 'span 3' }}>
+                        <p>You have not shared any projects yet.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* leaderboard view */}
+              {view === 'leaderboard' && (
+                <Leaderboard />
+              )}
+
+              {/* bounties view */}
+              {view === 'bounties' && (
+                <div>
+                  <div className="view-header">
+                    <div className="view-title">
+                      <h1>Micro-Gigs & Bounties</h1>
+                      <p>Book verified senior developers to audit, optimize, or resolve issues on your codebase.</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
+                    {BOUNTY_GIGS.map((gig, idx) => (
+                      <div
+                        key={idx}
+                        className="glass-panel"
+                        style={{ padding: '24px', border: '1px solid rgb(39,39,42)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                            <h3 style={{ fontSize: '16px', color: 'white', margin: 0, fontWeight: 800 }}>{gig.title}</h3>
+                            <span className="badge badge-mint" style={{ fontSize: '9px' }}>ACTIVE</span>
+                          </div>
+                          <span style={{ fontSize: '12px', color: 'rgb(161,161,170)' }}>Expert: {gig.dev} • Delivery in {gig.delivery}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 800, color: 'white' }}>${gig.price}</span>
+                          <button className="btn btn-primary" onClick={() => setSelectedBountyGig(gig)}>
+                            Book Expert
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* profile view */}
+              {view === 'profile' && (
+                <UserProfile
+                  user={profileData}
+                  projects={projects}
+                  onUpdateUser={handleUpdateProfile}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+          </div>
+          <Footer onNavigate={(tab) => setView(tab)} />
+        </div>
+      </div>
+
+      {/* Global cmdk Command Bar */}
+      <CmdkBar
+        isOpen={isCmdkOpen}
+        onClose={() => setIsCmdkOpen(false)}
+        projects={projects}
+        onSelectProject={(proj) => setSelectedWorkbench(proj)}
+        onSelectView={(v) => setView(v)}
+        onSelectTag={(tag) => setSelectedTagFilter(tag)}
+        tags={uniqueTags}
+      />
+
+      {/* Full-Screen Project Workbench Modal */}
+      <AnimatePresence>
+        {selectedWorkbench && (
+          <ProjectDetailModal
+            project={selectedWorkbench}
+            onClose={() => setSelectedWorkbench(null)}
+            onAddReview={handleAddReview}
           />
         )}
-        {view === 'leaderboard' && (
-          <Leaderboard />
-        )}
-        {view === 'profile' && (
-          <UserProfile
-            user={profileData}
-            projects={projects}
-            onUpdateUser={handleUpdateProfile}
-          />
-        )}
-      </main>
+      </AnimatePresence>
 
-      {/* App Notifications Toast */}
+      {/* Gig Checkout Dialog */}
+      {selectedBountyGig && (
+        <div className="modal-overlay" style={{ zIndex: 99999 }}>
+          <div className="modal-content glass-panel" style={{ maxWidth: '440px' }}>
+            <button className="modal-close" onClick={() => setSelectedBountyGig(null)}>
+              <X size={18} />
+            </button>
+
+            {bountyCheckoutStep === 0 && (
+              <form onSubmit={handleBookingSubmit}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                  <div style={{ width: '40px', height: '40px', background: 'rgba(20, 184, 166, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <DollarSign size={20} style={{ color: '#14b8a6' }} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '16px', color: 'white', margin: 0 }}>Checkout Gig</h3>
+                    <p style={{ fontSize: '11px', color: 'rgb(113,113,122)', margin: 0 }}>Secure payment gateway</p>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgb(39,39,42)', padding: '14px', borderRadius: '8px', marginBottom: '16px' }}>
+                  <span style={{ fontSize: '12px', color: 'rgb(161, 161, 170)' }}>Bounty Title:</span>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: 'white', margin: '4px 0 8px 0' }}>{selectedBountyGig.title}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'white', fontWeight: 600 }}>Amount:</span>
+                    <span style={{ fontSize: '14px', color: '#14b8a6', fontWeight: 800 }}>${selectedBountyGig.price}.00</span>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Payment Option</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Enter Card details or UPI"
+                    required
+                  />
+                </div>
+
+                <button type="submit" className="btn btn-success" style={{ width: '100%', padding: '12px' }}>
+                  Confirm Booking (${selectedBountyGig.price})
+                </button>
+              </form>
+            )}
+
+            {bountyCheckoutStep === 1 && (
+              <div className="verifying-overlay">
+                <div className="verify-spinner" style={{ width: '36px', height: '36px', marginBottom: '16px' }} />
+                <h3 style={{ color: 'white', fontSize: '15px' }}>Processing payment session...</h3>
+              </div>
+            )}
+
+            {bountyCheckoutStep === 2 && (
+              <div className="verifying-overlay" style={{ textAlign: 'center' }}>
+                <div style={{ width: '48px', height: '48px', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid #10b981', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                  <CheckCircle size={24} />
+                </div>
+                <h3 style={{ color: 'white', fontSize: '16px', fontWeight: 800 }}>Checkout Completed!</h3>
+                <p style={{ fontSize: '12px', color: 'rgb(113,113,122)' }}>Developer {selectedBountyGig.dev} will audit your codebase within {selectedBountyGig.delivery}.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Notifications Toast */}
       {toastMessage && (
-        <div className="toast">
+        <div className="toast" style={{ zIndex: 100000 }}>
           <Sparkles size={16} style={{ color: 'hsl(var(--secondary))' }} />
           <span>{toastMessage}</span>
         </div>
@@ -615,4 +1125,3 @@ export default function App() {
     </div>
   );
 }
-

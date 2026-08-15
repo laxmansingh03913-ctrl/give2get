@@ -70,6 +70,10 @@ export async function getSupabaseProjects(): Promise<Project[]> {
             code: r.score_code,
             performance: r.score_performance
           },
+          category: r.category || 'ui',
+          rating: r.rating || 5,
+          helpfulCount: r.helpful_count || 0,
+          isResolved: r.is_resolved || false,
           createdAt: r.created_at
         }));
 
@@ -140,7 +144,11 @@ export async function createSupabaseReview(
     content: review.content,
     score_design: review.scores.design,
     score_code: review.scores.code,
-    score_performance: review.scores.performance
+    score_performance: review.scores.performance,
+    category: review.category || 'ui',
+    rating: review.rating || 5,
+    helpful_count: review.helpfulCount || 0,
+    is_resolved: review.isResolved || false
   };
 
   const { error } = await supabase.from('reviews').insert([record]);
@@ -160,4 +168,60 @@ export async function createSupabaseReview(
     id: newId,
     createdAt: new Date().toISOString()
   };
+}
+
+export async function updateSupabaseReviewHelpful(reviewId: string, count: number): Promise<void> {
+  if (!supabase) throw new Error("Supabase client is not initialized.");
+  const { error } = await supabase
+    .from('reviews')
+    .update({ helpful_count: count })
+    .eq('id', reviewId);
+  if (error) throw error;
+}
+
+export async function updateSupabaseReviewResolved(reviewId: string, isResolved: boolean): Promise<void> {
+  if (!supabase) throw new Error("Supabase client is not initialized.");
+  const { error } = await supabase
+    .from('reviews')
+    .update({ is_resolved: isResolved })
+    .eq('id', reviewId);
+  if (error) throw error;
+}
+
+export interface UserProfileDB {
+  id: string;
+  github_username: string | null;
+  avatar_url: string | null;
+  is_verified: boolean;
+  repo_stats: any;
+  created_at?: string;
+}
+
+export async function fetchUserProfile(userId: string): Promise<UserProfileDB | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+    throw error;
+  }
+  return data;
+}
+
+export async function upsertUserProfile(profile: Partial<UserProfileDB> & { id: string }): Promise<UserProfileDB> {
+  if (!supabase) throw new Error("Supabase client is not initialized.");
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert([profile])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
